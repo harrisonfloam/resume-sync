@@ -18,12 +18,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
-def is_in_github_action():
+def is_in_github_action(verbose=False):
     """Return True if executing in Github Action"""
     
     check = os.environ.get('GITHUB_ACTIONS') == 'true'
     
-    if check:
+    if check and verbose:
         print("====== Executing with GitHub Actions. ======")
     
     return check
@@ -83,10 +83,13 @@ def get_dropbox_instance():
         DROPBOX_TOKEN = os.environ.get('DROPBOX_TOKEN')
         
         # Use refresh token if available
-        APP_KEY = json.load(DROPBOX_CREDS)['APP_KEY']
-        token = json.load(DROPBOX_TOKEN)
+        APP_KEY = json.loads(DROPBOX_CREDS)['APP_KEY']
+        token = json.loads(DROPBOX_TOKEN)
         refresh_token = token.get('refresh_token')
-        return dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
+        dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
+        
+        print("====== Authenticated Dropbox credentials. ======")
+        return dropbox_instance
         
     else:
         # Get app key
@@ -97,7 +100,10 @@ def get_dropbox_instance():
             with open('dropbox-token.json', 'r') as token_file:
                 token = json.load(token_file)
                 refresh_token = token.get('refresh_token')
-                return dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
+                dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
+                
+                print("====== Authenticated Dropbox credentials. ======")
+                return dropbox_instance
         else:
             # Start OAuth flow
             auth_flow = DropboxOAuth2FlowNoRedirect(consumer_key=APP_KEY, use_pkce=True, token_access_type='offline')
@@ -111,12 +117,13 @@ def get_dropbox_instance():
                 oauth_result = auth_flow.finish(auth_code)
                 with open('dropbox-token.json', 'w') as token_file:
                     json.dump({'refresh_token': oauth_result.refresh_token}, token_file)
-                return dropbox.Dropbox(oauth2_refresh_token=oauth_result.refresh_token, app_key=APP_KEY)
+                dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=oauth_result.refresh_token, app_key=APP_KEY)
+                
+                print("====== Authenticated Dropbox credentials. ======")
+                return dropbox_instance
             except Exception as error:
                 print(f"An error occurred creating a Dropbox API instance: {error}")
                 exit(1)
-                
-    print("====== Authenticated Dropbox credentials. ======")
 
 def get_recently_modified_resumes(drive_instance):
     """Download files modified in the past week from /Resumes and /Resumes/Targeted."""
@@ -210,6 +217,8 @@ def delete_temp_files():
     print("====== Temporary PDFs deleted successfully. ======")
 
 def sync():
+    is_in_github_action(verbose=True)
+    
     drive_instance = get_drive_instance()
     dropbox_instance = get_dropbox_instance()
     
