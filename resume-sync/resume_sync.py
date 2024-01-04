@@ -40,7 +40,7 @@ def get_drive_instance():
 
         # Use refresh token if available
         token = json.loads(GOOGLE_TOKEN)
-        creds = Credentials.from_authorized_user_info(GOOGLE_TOKEN, SCOPES)
+        creds = Credentials.from_authorized_user_info(token, SCOPES)
         
         # If there are no (valid) credentials available, attempt to refresh the token.
         if not creds or not creds.valid:
