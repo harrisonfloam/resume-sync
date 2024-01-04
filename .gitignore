@@ -1,3 +1,2 @@
-dropbox-creds.json
-google-service-creds.json
+*.json
 /env
