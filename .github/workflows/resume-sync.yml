@@ -1,7 +1,7 @@
 name: Resume Sync Workflow
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
 
 jobs:
   sync_resumes:
@@ -26,4 +26,4 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Resume Sync Script
-      run: /resume-sync.py
+      run: python ./resume_sync.py
