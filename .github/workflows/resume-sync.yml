@@ -26,4 +26,4 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Resume Sync Script
-      run: python ./resume_sync.py
+      run: python ./resume-sync/resume_sync.py
