@@ -206,12 +206,12 @@ def sync():
     # If filename is passed in, only get that file TODO: leave this blank for now
     
     # If not, get any files in /Resume or /Resume/Targeted changed in the past week
-    # get_recently_modified_resumes(drive_instance)
+    get_recently_modified_resumes(drive_instance)
     
     # Upload PDFs to Dropbox
     # upload_resumes_to_dropbox(dropbox_instance)
     
-    # delete_temp_files()
+    delete_temp_files()
     
     
 if __name__ == "__main__":
