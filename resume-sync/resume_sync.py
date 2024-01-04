@@ -131,7 +131,7 @@ def get_recently_modified_resumes(drive_instance):
     one_week_ago = datetime.utcnow() - timedelta(days=7)
     one_week_ago_str = one_week_ago.isoformat() + 'Z'  # Format for Google Drive API
 
-    print("====== Downloading recently modified resumes from Google Docs ======")
+    print("====== Downloading recently modified resumes from Google Docs. ======")
     try:
         # Folder IDs
         resume_folder_id = '1FQAXueyM20GCbD4g1fn4EZjV4XawAGkC'
@@ -228,7 +228,7 @@ def sync():
     get_recently_modified_resumes(drive_instance)
     
     # Upload PDFs to Dropbox
-    # upload_resumes_to_dropbox(dropbox_instance)
+    upload_resumes_to_dropbox(dropbox_instance)
     
     delete_temp_files()
     
