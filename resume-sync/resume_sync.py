@@ -36,7 +36,19 @@ def get_drive_instance():
     
     if is_in_github_action():
         #TODO: handle getting creds from secrets if running in a github action
-        pass
+        GOOGLE_TOKEN = os.environ.get('GOOGLE_TOKEN')
+
+        # Use refresh token if available
+        token = json.loads(GOOGLE_TOKEN)
+        creds = Credentials.from_authorized_user_info(GOOGLE_TOKEN, SCOPES)
+        
+        # If there are no (valid) credentials available, attempt to refresh the token.
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                print("Error: User authentication required, please run locally to refresh Google credentials.")        
+        
     else:
         # Use refresh token if available
         if os.path.exists("google-token.json"):
@@ -53,7 +65,7 @@ def get_drive_instance():
             with open("google-token.json", "w") as token:
                 token.write(creds.to_json())
                 
-        print ("====== Authenticated Google credentials. ======")
+    print ("====== Authenticated Google credentials. ======")
     try:
         return build("drive", "v3", credentials=creds)
     except HttpError as error:
@@ -189,17 +201,17 @@ def delete_temp_files():
 
 def sync():
     drive_instance = get_drive_instance()
-    dropbox_instance = get_dropbox_instance()
+    # dropbox_instance = get_dropbox_instance()
     
     # If filename is passed in, only get that file TODO: leave this blank for now
     
     # If not, get any files in /Resume or /Resume/Targeted changed in the past week
-    get_recently_modified_resumes(drive_instance)
+    # get_recently_modified_resumes(drive_instance)
     
     # Upload PDFs to Dropbox
-    upload_resumes_to_dropbox(dropbox_instance)
+    # upload_resumes_to_dropbox(dropbox_instance)
     
-    delete_temp_files()
+    # delete_temp_files()
     
     
 if __name__ == "__main__":
