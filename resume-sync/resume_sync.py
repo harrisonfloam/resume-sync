@@ -79,7 +79,15 @@ def get_dropbox_instance():
     
     if is_in_github_action():
         #TODO: handle getting creds from secrets if running in a github action
-        pass
+        DROPBOX_CREDS = os.environ.get('DROPBOX_CREDS')
+        DROPBOX_TOKEN = os.environ.get('DROPBOX_TOKEN')
+        
+        # Use refresh token if available
+        APP_KEY = json.load(DROPBOX_CREDS)['APP_KEY']
+        token = json.load(DROPBOX_TOKEN)
+        refresh_token = token.get('refresh_token')
+        return dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
+        
     else:
         # Get app key
         with open('dropbox-creds.json', 'r') as creds_file:
@@ -89,7 +97,6 @@ def get_dropbox_instance():
             with open('dropbox-token.json', 'r') as token_file:
                 token = json.load(token_file)
                 refresh_token = token.get('refresh_token')
-                print("====== Authenticated Dropbox credentials. ======")
                 return dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
         else:
             # Start OAuth flow
@@ -102,13 +109,14 @@ def get_dropbox_instance():
 
             try:
                 oauth_result = auth_flow.finish(auth_code)
-                print("====== Authenticated Dropbox credentials. ======")
                 with open('dropbox-token.json', 'w') as token_file:
                     json.dump({'refresh_token': oauth_result.refresh_token}, token_file)
                 return dropbox.Dropbox(oauth2_refresh_token=oauth_result.refresh_token, app_key=APP_KEY)
             except Exception as error:
                 print(f"An error occurred creating a Dropbox API instance: {error}")
                 exit(1)
+                
+    print("====== Authenticated Dropbox credentials. ======")
 
 def get_recently_modified_resumes(drive_instance):
     """Download files modified in the past week from /Resumes and /Resumes/Targeted."""
@@ -198,10 +206,12 @@ def delete_temp_files():
                 shutil.rmtree(filepath)
         except Exception as e:
             print(f'Failed to delete {filepath}. Reason: {e}')
+            
+    print("====== Temporary PDFs deleted successfully. ======")
 
 def sync():
     drive_instance = get_drive_instance()
-    # dropbox_instance = get_dropbox_instance()
+    dropbox_instance = get_dropbox_instance()
     
     # If filename is passed in, only get that file TODO: leave this blank for now
     
