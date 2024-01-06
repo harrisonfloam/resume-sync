@@ -2,6 +2,9 @@ name: Resume Sync Workflow
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 10 * * *'  # 10:00 AM UTC = 5:00 AM EST
+    
 
 jobs:
   sync_resumes:
