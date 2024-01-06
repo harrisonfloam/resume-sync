@@ -2,12 +2,12 @@
 Sync resumes from Google Drive to Dropbox in PDF form.
 """
 
-
 import os
 import io
 import json
 import shutil
-from datetime import date, datetime, timedelta
+import re
+from datetime import datetime, timedelta
 import dropbox
 from dropbox import DropboxOAuth2FlowNoRedirect
 from dropbox.files import WriteMode
@@ -17,6 +17,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
+
 
 def is_in_github_action(verbose=False):
     """Return True if executing in Github Action"""
@@ -78,7 +79,6 @@ def get_dropbox_instance():
     # creds = None
     
     if is_in_github_action():
-        #TODO: handle getting creds from secrets if running in a github action
         DROPBOX_CREDS = os.environ.get('DROPBOX_CREDS')
         DROPBOX_TOKEN = os.environ.get('DROPBOX_TOKEN')
         
@@ -136,10 +136,10 @@ def get_recently_modified_resumes(drive_instance):
         # Folder IDs
         resume_folder_id = '1FQAXueyM20GCbD4g1fn4EZjV4XawAGkC'
         targeted_folder_id = '1bXW8_I_x7__gu30XbmmqdftH_fNyst2-'
-        #TODO: add cover letters
+        cover_letters_folder_id = '17CQ5vN6mZci6PSdkjyZYvBEEK6RQd23y'
         
         # Get files
-        query = f"(parents = '{resume_folder_id}' or parents = '{targeted_folder_id}') and " \
+        query = f"(parents = '{resume_folder_id}' or parents = '{targeted_folder_id}' or parents = '{cover_letters_folder_id}') and " \
                 f"modifiedTime > '{one_week_ago_str}'and " \
                 f"mimeType != 'application/vnd.google-apps.folder'"
         fields = "files(id, name, modifiedTime, parents)"
@@ -152,7 +152,7 @@ def get_recently_modified_resumes(drive_instance):
         else:
             print("Files modified in the past week:")
             for item in items:
-                print(f"{item['name']} (Modified: {item['modifiedTime']}, ID: {item['id']}, Parent: {item['parents'][0]})")
+                print(f"{item['name']} (Modified: {item['modifiedTime']})")
                 
                 request = drive_instance.files().export(fileId=item['id'], mimeType='application/pdf')
                 fh = io.BytesIO()
@@ -169,6 +169,8 @@ def get_recently_modified_resumes(drive_instance):
                     folderpath = 'Resume'
                 elif item['parents'][0] == targeted_folder_id:
                     folderpath = 'Resume/Targeted'
+                elif item['parents'][0] == cover_letters_folder_id:
+                    folderpath = 'Resume/Cover Letters'
                 else:
                     raise FileNotFoundError(f"FileId {item['id']} with parent {item['parents'][0]} does not match /Resume or /Targeted.")
                 filepath = f"temp_pdf/{folderpath}/{item['name']}"
@@ -183,15 +185,15 @@ def get_recently_modified_resumes(drive_instance):
         
 def upload_resumes_to_dropbox(dropbox_instance):
     """Upload all files in /temp_pdf to Dropbox, preserving directory structure."""
-    print("====== Uploading recently modified resumes to Dropbox ======")
+    print("====== Uploading recently modified resumes to Dropbox. ======")
     
-    local_directory = "temp_pdf"
+    local_directory = 'temp_pdf'
 
     for root, dirs, files in os.walk(local_directory):
         for filename in files:
             # Get filepaths
             local_filepath = os.path.join(root, filename)
-            dropbox_filepath = local_filepath.replace('\\','/').replace('temp_pdf', '')            
+            dropbox_filepath = local_filepath.replace('\\','/').replace(local_directory, '')            
             
             with open(local_filepath, "rb") as f:
                 try:
@@ -199,7 +201,55 @@ def upload_resumes_to_dropbox(dropbox_instance):
                     print(f"Uploaded {filename} to Dropbox path: {dropbox_filepath}")
                 except Exception as e:
                     print(f"Failed to upload {filename}. Error: {e}")
+                    
+def clean_up_dropbox(dropbox_instance):
+    """Overwrite old copies of identical resumes on Dropbox."""
+    print("====== Updating old versions on Dropbox. ======")
     
+    local_directory = 'temp_pdf'
+    date_pattern = r'\(([^)]+)\)'
+    update_made = False
+
+    # List files in Dropbox folder
+    files_in_resume = dropbox_instance.files_list_folder('/Resume').entries  # /Resume
+    files_in_targeted = dropbox_instance.files_list_folder('/Resume/Targeted').entries # /Resume/Targeted
+    files_in_dropbox = files_in_resume + files_in_targeted
+    
+    # Process local files and compare
+    for root, dirs, files in os.walk(local_directory):
+        for local_filename in files:
+            # Extract date from local files
+            content_in_parentheses = re.search(date_pattern, local_filename)
+            if content_in_parentheses:
+                content_match = content_in_parentheses.group(1)
+                date_match = content_match.split(',')[0]
+                
+                local_date = datetime.strptime(date_match.strip(), "%b %Y") # Convert to datetime
+                local_filename_stripped = local_filename.replace(date_match, "")
+
+                for dbx_file in files_in_dropbox:
+                    if isinstance(dbx_file, dropbox.files.FileMetadata):
+                        # Extract date from dropbox files
+                        dbx_filename = dbx_file.name
+                        dbx_content_in_parentheses = re.search(date_pattern, dbx_filename)
+                        if dbx_content_in_parentheses:
+                            dbx_content_match = dbx_content_in_parentheses.group(1)
+                            dbx_date_match = dbx_content_match.split(',')[0]
+                            
+                            dbx_date = datetime.strptime(dbx_date_match.strip(), "%b %Y") # Convert to datetime
+                            dbx_filename_stripped = dbx_filename.replace(dbx_date_match, "")
+                        
+                            # Compare and delete older file
+                            if dbx_filename_stripped == local_filename_stripped and local_date > dbx_date:
+                                try:
+                                    dropbox_instance.files_delete_v2(dbx_file.path_lower)
+                                    update_made = True
+                                    print(f"Updated {dbx_filename} to {local_filename} on Dropbox.")
+                                except Exception as e:
+                                    print(f"Failed to delete {dbx_file.name}. Error: {e}")
+    if not update_made:
+        print("No files to update.")
+
 def delete_temp_files():
     """Delete contents of /temp_pdf"""
     folder = 'temp_pdf'
@@ -219,17 +269,20 @@ def delete_temp_files():
 def sync():
     is_in_github_action(verbose=True)
     
+    # Initialize instances
     drive_instance = get_drive_instance()
     dropbox_instance = get_dropbox_instance()
     
-    # If filename is passed in, only get that file TODO: leave this blank for now
-    
-    # If not, get any files in /Resume or /Resume/Targeted changed in the past week
+    # Download Google Drive resumes modified within the past week as PDF
     get_recently_modified_resumes(drive_instance)
     
     # Upload PDFs to Dropbox
     upload_resumes_to_dropbox(dropbox_instance)
     
+    # Clean up Dropbox
+    clean_up_dropbox(dropbox_instance)
+    
+    # Delete downloaded PDFs from working directory
     delete_temp_files()
     
     
