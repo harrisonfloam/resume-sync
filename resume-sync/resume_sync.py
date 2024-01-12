@@ -58,8 +58,12 @@ def get_drive_instance():
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
+                try:
+                    creds.refresh(Request())
+                except Exception:
+                    creds = None
+            # Initiate OAuth flow if needed
+            if not creds or not creds.valid:
                 flow = InstalledAppFlow.from_client_secrets_file("google-creds.json", SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
