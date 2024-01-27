@@ -32,11 +32,11 @@ def is_in_github_action(verbose=False):
 def get_drive_instance():
     """Uses current Google credentials to create a Google Drive API instance. Uses OAuth2 refresh token if available. 
     Prompts user for authentication if needed when not running in GitHub Actions."""
+    #BUG: refresh token expires after 1 week
     creds = None
     SCOPES = ["https://www.googleapis.com/auth/drive"]
     
     if is_in_github_action():
-        #TODO: handle getting creds from secrets if running in a github action
         GOOGLE_TOKEN = os.environ.get('GOOGLE_TOKEN')
 
         # Use refresh token if available
@@ -220,6 +220,7 @@ def clean_up_dropbox(dropbox_instance):
     files_in_dropbox = files_in_resume + files_in_targeted
     
     # Process local files and compare
+    # TODO: Refactor for readability...
     for root, dirs, files in os.walk(local_directory):
         for local_filename in files:
             # Extract date from local files
