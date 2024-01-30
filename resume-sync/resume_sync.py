@@ -258,16 +258,17 @@ def clean_up_dropbox(dropbox_instance):
 def delete_temp_files():
     """Delete contents of /temp_pdf"""
     folder = 'temp_pdf'
-
-    for filename in os.listdir(folder):
-        filepath = os.path.join(folder, filename)
-        try:
-            if os.path.isfile(filepath) or os.path.islink(filepath):
-                os.unlink(filepath)
-            elif os.path.isdir(filepath):
-                shutil.rmtree(filepath)
-        except Exception as e:
-            print(f'Failed to delete {filepath}. Reason: {e}')
+    
+    if os.path.exists(folder):
+        for filename in os.listdir(folder):
+            filepath = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(filepath) or os.path.islink(filepath):
+                    os.unlink(filepath)
+                elif os.path.isdir(filepath):
+                    shutil.rmtree(filepath)
+            except Exception as e:
+                print(f'Failed to delete {filepath}. Reason: {e}')
             
     print("====== Temporary PDFs deleted successfully. ======")
 
