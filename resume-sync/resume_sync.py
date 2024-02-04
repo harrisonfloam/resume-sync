@@ -42,7 +42,7 @@ def get_drive_instance_sa():
         
         key = json.loads(GOOGLE_SA_KEY)
         try:
-            creds = service_account.Credentials.from_service_account_file(key, SCOPES)
+            creds = service_account.Credentials.from_service_account_info(key, SCOPES)
         except Exception as e:
             print(f"Error loading credentials: {e}")
             creds = None
