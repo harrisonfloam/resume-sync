@@ -36,6 +36,8 @@ def get_drive_instance():
     creds = None
     SCOPES = ["https://www.googleapis.com/auth/drive"]
     
+    print ("====== Authenticating Google credentials. ======")
+    
     if is_in_github_action():
         GOOGLE_TOKEN = os.environ.get('GOOGLE_TOKEN')
 
@@ -46,21 +48,29 @@ def get_drive_instance():
         # If there are no (valid) credentials available, attempt to refresh the token.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                print("Error: User authentication required, please run locally to refresh Google credentials.")        
+                try:
+                    creds.refresh(Request())
+                except Exception as e:
+                    print(f"Error refreshing token: {e}")
+                    creds = None
         
     else:
         # Use refresh token if available
         if os.path.exists("google-token.json"):
-            creds = Credentials.from_authorized_user_file("google-token.json", SCOPES)
+            try:
+                creds = Credentials.from_authorized_user_file("google-token.json", SCOPES)
+            except Exception as e:
+                print(f"Error loading credentials: {e}")
+                creds = None
             
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
+                print("Credentials expired. Attempting refresh.")
                 try:
                     creds.refresh(Request())
-                except Exception:
+                except Exception as e:
+                    print(f"Error refreshing token: {e}")
                     creds = None
             # Initiate OAuth flow if needed
             if not creds or not creds.valid:
@@ -70,17 +80,19 @@ def get_drive_instance():
             with open("google-token.json", "w") as token:
                 token.write(creds.to_json())
                 
-    print ("====== Authenticated Google credentials. ======")
     try:
-        return build("drive", "v3", credentials=creds)
+        drive_instance = build("drive", "v3", credentials=creds)
+        print("Authenticated.")
+        return drive_instance
     except HttpError as error:
         print(f"An error occurred creating a Google Drive API instance: {error}")
-
 
 def get_dropbox_instance():
     """Uses current Dropbox Credentials to create an API instance. Uses OAuth2 refresh token if available. 
     Prompts user for authentication if needed when not running in GitHub Actions."""
     # creds = None
+    
+    print("====== Authenticating Dropbox credentials. ======")
     
     if is_in_github_action():
         DROPBOX_CREDS = os.environ.get('DROPBOX_CREDS')
@@ -92,7 +104,7 @@ def get_dropbox_instance():
         refresh_token = token.get('refresh_token')
         dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
         
-        print("====== Authenticated Dropbox credentials. ======")
+        print("Authenticated.")
         return dropbox_instance
         
     else:
@@ -106,7 +118,7 @@ def get_dropbox_instance():
                 refresh_token = token.get('refresh_token')
                 dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=refresh_token, app_key=APP_KEY)
                 
-                print("====== Authenticated Dropbox credentials. ======")
+                print("Authenticated.")
                 return dropbox_instance
         else:
             # Start OAuth flow
@@ -123,7 +135,7 @@ def get_dropbox_instance():
                     json.dump({'refresh_token': oauth_result.refresh_token}, token_file)
                 dropbox_instance = dropbox.Dropbox(oauth2_refresh_token=oauth_result.refresh_token, app_key=APP_KEY)
                 
-                print("====== Authenticated Dropbox credentials. ======")
+                print("Authenticated.")
                 return dropbox_instance
             except Exception as error:
                 print(f"An error occurred creating a Dropbox API instance: {error}")
@@ -292,5 +304,13 @@ def sync():
     delete_temp_files()
     
     
+def test_auth():
+    is_in_github_action(verbose=True)
+    
+    # Initialize instances
+    _ = get_drive_instance()
+    _ = get_dropbox_instance()
+    
 if __name__ == "__main__":
-    sync()
+    # sync()
+    test_auth()
