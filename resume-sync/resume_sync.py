@@ -40,9 +40,9 @@ def get_drive_instance_sa():
     if is_in_github_action():
         GOOGLE_SA_KEY = os.environ.get("GOOGLE_SA_KEY")
         
-        key = json.loads(GOOGLE_SA_KEY)
         try:
-            creds = service_account.Credentials.from_service_account_info(key, SCOPES)
+            key = json.loads(GOOGLE_SA_KEY)
+            creds = service_account.Credentials.from_service_account_info(info=key, scopes=SCOPES)
         except Exception as e:
             print(f"Error loading credentials: {e}")
             creds = None
