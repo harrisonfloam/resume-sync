@@ -17,6 +17,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
+from google.oauth2 import service_account
 
 
 def is_in_github_action(verbose=False):
@@ -28,6 +29,41 @@ def is_in_github_action(verbose=False):
         print("====== Executing with GitHub Actions. ======")
     
     return check
+
+def get_drive_instance_sa():
+    """Uses Google service account credentials to create a Google Drive API instance."""   
+    creds = None
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
+    
+    print ("====== Authenticating Google credentials. ======")
+    
+    if is_in_github_action():
+        GOOGLE_SA_KEY = os.environ.get("GOOGLE_SA_KEY")
+        
+        key = json.loads(GOOGLE_SA_KEY)
+        try:
+            creds = service_account.Credentials.from_service_account_file(key, SCOPES)
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            creds = None
+            
+    else:   # Running locally
+        try:
+            creds = service_account.Credentials.from_service_account_file('google-service-account.json', scopes=SCOPES)
+        except Exception as e:
+            print(f"Error loading service account credentials: {e}")
+            return None
+        
+    try:
+        drive_instance = build("drive", "v3", credentials=creds)
+        print("Authenticated.")
+        return drive_instance
+    except HttpError as error:
+        print(f"An error occurred creating a Google Drive API instance: {error}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
     
 def get_drive_instance():
     """Uses current Google credentials to create a Google Drive API instance. Uses OAuth2 refresh token if available. 
@@ -49,6 +85,7 @@ def get_drive_instance():
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 try:
+                    print("Credentials expired. Attempting refresh.")
                     creds.refresh(Request())
                 except Exception as e:
                     print(f"Error refreshing token: {e}")
@@ -66,8 +103,8 @@ def get_drive_instance():
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                print("Credentials expired. Attempting refresh.")
                 try:
+                    print("Credentials expired. Attempting refresh.")
                     creds.refresh(Request())
                 except Exception as e:
                     print(f"Error refreshing token: {e}")
@@ -288,7 +325,7 @@ def sync():
     is_in_github_action(verbose=True)
     
     # Initialize instances
-    drive_instance = get_drive_instance()
+    drive_instance = get_drive_instance_sa()
     dropbox_instance = get_dropbox_instance()
     
     # Download Google Drive resumes modified within the past week as PDF
@@ -308,9 +345,9 @@ def test_auth():
     is_in_github_action(verbose=True)
     
     # Initialize instances
-    _ = get_drive_instance()
+    _ = get_drive_instance_sa()
     _ = get_dropbox_instance()
     
 if __name__ == "__main__":
-    # sync()
-    test_auth()
+    sync()
+    # test_auth()
