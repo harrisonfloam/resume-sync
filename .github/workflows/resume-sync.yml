@@ -10,8 +10,9 @@ jobs:
   sync_resumes:
     runs-on: ubuntu-latest
     env:
-      GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-      GOOGLE_TOKEN: ${{ secrets.GOOGLE_TOKEN }}
+      # GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+      # GOOGLE_TOKEN: ${{ secrets.GOOGLE_TOKEN }}
+      GOOGLE_SA_KEY: ${{ secrets.GOOGLE_SA_KEY }}
       DROPBOX_CREDS: ${{ secrets.DROPBOX_CREDS }}
       DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
     steps:
