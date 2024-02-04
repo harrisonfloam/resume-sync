@@ -49,7 +49,7 @@ def get_drive_instance_sa():
             
     else:   # Running locally
         try:
-            creds = service_account.Credentials.from_service_account_file('google-service-account.json', scopes=SCOPES)
+            creds = service_account.Credentials.from_service_account_file(filename='google-service-account.json', scopes=SCOPES)
         except Exception as e:
             print(f"Error loading service account credentials: {e}")
             return None
@@ -79,7 +79,7 @@ def get_drive_instance():
 
         # Use refresh token if available
         token = json.loads(GOOGLE_TOKEN)
-        creds = Credentials.from_authorized_user_info(token, SCOPES)
+        creds = Credentials.from_authorized_user_info(info=token, scopes=SCOPES)
         
         # If there are no (valid) credentials available, attempt to refresh the token.
         if not creds or not creds.valid:
@@ -95,7 +95,7 @@ def get_drive_instance():
         # Use refresh token if available
         if os.path.exists("google-token.json"):
             try:
-                creds = Credentials.from_authorized_user_file("google-token.json", SCOPES)
+                creds = Credentials.from_authorized_user_file(filename="google-token.json", scopes=SCOPES)
             except Exception as e:
                 print(f"Error loading credentials: {e}")
                 creds = None
@@ -111,7 +111,7 @@ def get_drive_instance():
                     creds = None
             # Initiate OAuth flow if needed
             if not creds or not creds.valid:
-                flow = InstalledAppFlow.from_client_secrets_file("google-creds.json", SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file(filename="google-creds.json", scopes=SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
             with open("google-token.json", "w") as token:
